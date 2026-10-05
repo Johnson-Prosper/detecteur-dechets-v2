@@ -14,7 +14,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 import streamlit as st
-import tensorflow.lite as tflite
+import tflite_runtime.interpreter as tfli
 
 from PIL import Image, ImageOps
 
