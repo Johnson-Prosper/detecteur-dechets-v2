@@ -7,15 +7,13 @@ Original file is located at
     https://colab.research.google.com/drive/1giaYDovKxxxqLbKGPy4Pfiyg2HpkXOR-
 """
 
-
 import os
 from datetime import datetime
 
 import cv2
 import numpy as np
 import streamlit as st
-import tflite_runtime.interpreter as tfli
-
+import tflite_runtime.interpreter as tflite
 from PIL import Image, ImageOps
 
 
@@ -27,7 +25,7 @@ st.set_page_config(
     page_title="EcoSort AI",
     page_icon="♻️",
     layout="centered",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
 
@@ -92,7 +90,7 @@ st.markdown(
 
     </style>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 
@@ -101,15 +99,14 @@ st.markdown(
 # ============================================================
 
 st.markdown(
-    '<div class="eco-title">♻️ EcoSort AI</div>',
-    unsafe_allow_html=True
+    '<div class="eco-title">♻️ EcoSort AI</div>', unsafe_allow_html=True
 )
 
 st.markdown(
     '<div class="eco-subtitle">'
-    'Analyse intelligente et aide au tri des déchets'
-    '</div>',
-    unsafe_allow_html=True
+    "Analyse intelligente et aide au tri des déchets"
+    "</div>",
+    unsafe_allow_html=True,
 )
 
 
@@ -122,11 +119,7 @@ MODEL_PATH = "model_unquant.tflite"
 # IMPORTANT :
 # Cet ordre doit correspondre EXACTEMENT à celui utilisé
 # pendant l'entraînement du modèle.
-CLASSES = [
-    "Non-Recyclable",
-    "Organique",
-    "Recyclable"
-]
+CLASSES = ["Non-Recyclable", "Organique", "Recyclable"]
 
 # Seuil minimal pour accepter une prédiction
 CONFIDENCE_THRESHOLD = 0.60
@@ -142,7 +135,6 @@ BRIGHTNESS_MAX = 225
 # ============================================================
 
 GUIDE_TRI = {
-
     "Non-Recyclable": {
         "emoji": "🗑️",
         "titre": "NON-RECYCLABLE",
@@ -158,9 +150,8 @@ GUIDE_TRI = {
         "conseil": (
             "Lorsque c'est possible, vérifiez les consignes "
             "locales avant de jeter l'objet."
-        )
+        ),
     },
-
     "Organique": {
         "emoji": "🌱",
         "titre": "ORGANIQUE",
@@ -176,9 +167,8 @@ GUIDE_TRI = {
         "conseil": (
             "Évitez de mélanger les déchets organiques avec "
             "les déchets recyclables."
-        )
+        ),
     },
-
     "Recyclable": {
         "emoji": "♻️",
         "titre": "RECYCLABLE",
@@ -194,8 +184,8 @@ GUIDE_TRI = {
         "conseil": (
             "Lorsque c'est pertinent, videz et nettoyez l'objet "
             "avant de le déposer."
-        )
-    }
+        ),
+    },
 }
 
 
@@ -203,17 +193,13 @@ GUIDE_TRI = {
 # 6. CHARGEMENT DU MODÈLE
 # ============================================================
 
+
 @st.cache_resource
 def charger_modele():
-
     if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(
-            f"Le fichier '{MODEL_PATH}' est introuvable."
-        )
+        raise FileNotFoundError(f"Le fichier '{MODEL_PATH}' est introuvable.")
 
-    interpreter = tflite.Interpreter(
-        model_path=MODEL_PATH
-    )
+    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
 
     interpreter.allocate_tensors()
 
@@ -235,58 +221,46 @@ if "historique" not in st.session_state:
 # 8. OUTILS IMAGE
 # ============================================================
 
+
 def corriger_orientation(image):
-    """
-    Corrige l'orientation EXIF des photos prises avec un téléphone.
-    """
+    """Corrige l'orientation EXIF des photos prises avec un téléphone."""
     return ImageOps.exif_transpose(image)
 
 
 def analyser_qualite_image(image):
-    """
-    Analyse approximativement :
+    """Analyse approximativement :
+
     - luminosité
     - netteté/flou
     """
 
     image_rgb = np.array(image.convert("RGB"))
 
-    gray = cv2.cvtColor(
-        image_rgb,
-        cv2.COLOR_RGB2GRAY
-    )
+    gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
 
     brightness = float(np.mean(gray))
 
-    blur_score = float(
-        cv2.Laplacian(gray, cv2.CV_64F).var()
-    )
+    blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
 
     messages = []
     image_correcte = True
 
     if brightness < BRIGHTNESS_MIN:
-        messages.append(
-            "📷 L'image semble trop sombre."
-        )
+        messages.append("📷 L'image semble trop sombre.")
         image_correcte = False
 
     elif brightness > BRIGHTNESS_MAX:
-        messages.append(
-            "☀️ L'image semble très lumineuse."
-        )
+        messages.append("☀️ L'image semble très lumineuse.")
 
     if blur_score < BLUR_THRESHOLD:
-        messages.append(
-            "🔎 L'image semble légèrement floue."
-        )
+        messages.append("🔎 L'image semble légèrement floue.")
         image_correcte = False
 
     return {
         "brightness": brightness,
         "blur_score": blur_score,
         "messages": messages,
-        "correcte": image_correcte
+        "correcte": image_correcte,
     }
 
 
@@ -294,8 +268,8 @@ def analyser_qualite_image(image):
 # 9. PRÉPARATION DE L'IMAGE POUR L'IA
 # ============================================================
 
-def preparer_image(image, input_details):
 
+def preparer_image(image, input_details):
     input_shape = input_details[0]["shape"]
     input_dtype = input_details[0]["dtype"]
 
@@ -314,7 +288,6 @@ def preparer_image(image, input_details):
     # --------------------------------------------------------
 
     if input_dtype == np.float32:
-
         image_array = image_array.astype(np.float32)
 
         image_array = image_array / 255.0
@@ -324,33 +297,22 @@ def preparer_image(image, input_details):
     # --------------------------------------------------------
 
     else:
-
         image_array = image_array.astype(input_dtype)
 
-        quantization = input_details[0].get(
-            "quantization",
-            (0.0, 0)
-        )
+        quantization = input_details[0].get("quantization", (0.0, 0))
 
         scale, zero_point = quantization
 
         if scale != 0:
-
-            image_array = (
-                image_array.astype(np.float32) / scale
-                + zero_point
-            )
+            image_array = image_array.astype(np.float32) / scale + zero_point
 
             image_array = np.clip(
                 image_array,
                 np.iinfo(input_dtype).min,
-                np.iinfo(input_dtype).max
+                np.iinfo(input_dtype).max,
             ).astype(input_dtype)
 
-    image_array = np.expand_dims(
-        image_array,
-        axis=0
-    )
+    image_array = np.expand_dims(image_array, axis=0)
 
     return image_array
 
@@ -359,28 +321,17 @@ def preparer_image(image, input_details):
 # 10. SORTIE DU MODÈLE
 # ============================================================
 
-def obtenir_predictions(
-    interpreter,
-    input_details,
-    output_details,
-    image_tensor
-):
 
-    interpreter.set_tensor(
-        input_details[0]["index"],
-        image_tensor
-    )
+def obtenir_predictions(
+    interpreter, input_details, output_details, image_tensor
+):
+    interpreter.set_tensor(input_details[0]["index"], image_tensor)
 
     interpreter.invoke()
 
-    output = interpreter.get_tensor(
-        output_details[0]["index"]
-    )[0]
+    output = interpreter.get_tensor(output_details[0]["index"])[0]
 
-    output = np.array(
-        output,
-        dtype=np.float32
-    )
+    output = np.array(output, dtype=np.float32)
 
     # --------------------------------------------------------
     # Si le modèle renvoie des logits plutôt que des
@@ -392,15 +343,9 @@ def obtenir_predictions(
         or np.max(output) > 1
         or not np.isclose(np.sum(output), 1.0, atol=0.05)
     ):
+        exp_values = np.exp(output - np.max(output))
 
-        exp_values = np.exp(
-            output - np.max(output)
-        )
-
-        output = (
-            exp_values
-            / np.sum(exp_values)
-        )
+        output = exp_values / np.sum(exp_values)
 
     return output
 
@@ -409,23 +354,16 @@ def obtenir_predictions(
 # 11. ANALYSE PRINCIPALE
 # ============================================================
 
-def analyser_dechet(image, interpreter, input_details, output_details):
 
-    image_tensor = preparer_image(
-        image,
-        input_details
-    )
+def analyser_dechet(image, interpreter, input_details, output_details):
+    image_tensor = preparer_image(image, input_details)
 
     predictions = obtenir_predictions(
-        interpreter,
-        input_details,
-        output_details,
-        image_tensor
+        interpreter, input_details, output_details, image_tensor
     )
 
     # Sécurité : vérifier la correspondance
     if len(predictions) != len(CLASSES):
-
         raise ValueError(
             "Le nombre de sorties du modèle "
             f"({len(predictions)}) ne correspond pas "
@@ -433,59 +371,39 @@ def analyser_dechet(image, interpreter, input_details, output_details):
             f"({len(CLASSES)})."
         )
 
-    meilleur_index = int(
-        np.argmax(predictions)
-    )
+    meilleur_index = int(np.argmax(predictions))
 
-    classe_detectee = CLASSES[
-        meilleur_index
-    ]
+    classe_detectee = CLASSES[meilleur_index]
 
-    score_confiance = float(
-        predictions[meilleur_index]
-    )
+    score_confiance = float(predictions[meilleur_index])
 
     # Classement de toutes les prédictions
     classement = sorted(
-        zip(CLASSES, predictions),
-        key=lambda x: x[1],
-        reverse=True
+        zip(CLASSES, predictions), key=lambda x: x[1], reverse=True
     )
 
-    return (
-        classe_detectee,
-        score_confiance,
-        classement
-    )
+    return (classe_detectee, score_confiance, classement)
 
 
 # ============================================================
 # 12. ENREGISTRER DANS L'HISTORIQUE
 # ============================================================
 
-def ajouter_historique(
-    classe,
-    confiance
-):
 
+def ajouter_historique(classe, confiance):
     maintenant = datetime.now()
 
     entree = {
         "date": maintenant.strftime("%d/%m/%Y"),
         "heure": maintenant.strftime("%H:%M"),
         "classe": classe,
-        "confiance": confiance
+        "confiance": confiance,
     }
 
-    st.session_state.historique.insert(
-        0,
-        entree
-    )
+    st.session_state.historique.insert(0, entree)
 
     # On conserve les 50 dernières analyses
-    st.session_state.historique = (
-        st.session_state.historique[:50]
-    )
+    st.session_state.historique = st.session_state.historique[:50]
 
 
 # ============================================================
@@ -493,15 +411,9 @@ def ajouter_historique(
 # ============================================================
 
 try:
-
-    (
-        interpreter,
-        input_details,
-        output_details
-    ) = charger_modele()
+    (interpreter, input_details, output_details) = charger_modele()
 
 except FileNotFoundError as e:
-
     st.error(f"❌ {e}")
 
     st.info(
@@ -512,10 +424,7 @@ except FileNotFoundError as e:
     st.stop()
 
 except Exception as e:
-
-    st.error(
-        "❌ Impossible de charger le modèle."
-    )
+    st.error("❌ Impossible de charger le modèle.")
 
     st.exception(e)
 
@@ -527,26 +436,16 @@ except Exception as e:
 # ============================================================
 
 with st.expander("🔧 Informations techniques du modèle"):
-
     input_shape = input_details[0]["shape"]
     input_dtype = input_details[0]["dtype"]
 
-    st.write(
-        f"**Entrée :** {list(input_shape)}"
-    )
+    st.write(f"**Entrée :** {list(input_shape)}")
 
-    st.write(
-        f"**Type :** `{input_dtype}`"
-    )
+    st.write(f"**Type :** `{input_dtype}`")
 
-    st.write(
-        f"**Nombre de classes :** {len(CLASSES)}"
-    )
+    st.write(f"**Nombre de classes :** {len(CLASSES)}")
 
-    st.write(
-        "**Classes :** "
-        + ", ".join(CLASSES)
-    )
+    st.write("**Classes :** " + ", ".join(CLASSES))
 
 
 # ============================================================
@@ -557,32 +456,19 @@ st.subheader("📷 Analyser un déchet")
 
 source = st.radio(
     "Choisissez la méthode :",
-    [
-        "📸 Prendre une photo",
-        "🖼️ Importer une image"
-    ],
-    horizontal=True
+    ["📸 Prendre une photo", "🖼️️ Importer une image"],
+    horizontal=True,
 )
 
 img_file = None
 
 
 if source == "📸 Prendre une photo":
-
-    img_file = st.camera_input(
-        "Photographiez le déchet"
-    )
+    img_file = st.camera_input("Photographiez le déchet")
 
 else:
-
     img_file = st.file_uploader(
-        "Choisissez une image",
-        type=[
-            "png",
-            "jpg",
-            "jpeg",
-            "webp"
-        ]
+        "Choisissez une image", type=["png", "jpg", "jpeg", "webp"]
     )
 
 
@@ -591,29 +477,20 @@ else:
 # ============================================================
 
 if img_file is not None:
-
     try:
-
         image = Image.open(img_file)
 
         image = corriger_orientation(image)
 
-        st.image(
-            image,
-            caption="Image sélectionnée",
-            use_container_width=True
-        )
+        st.image(image, caption="Image sélectionnée", use_container_width=True)
 
         # ----------------------------------------------------
         # QUALITÉ
         # ----------------------------------------------------
 
-        qualite = analyser_qualite_image(
-            image
-        )
+        qualite = analyser_qualite_image(image)
 
         if qualite["messages"]:
-
             for message in qualite["messages"]:
                 st.warning(message)
 
@@ -621,19 +498,9 @@ if img_file is not None:
         # ANALYSE IA
         # ----------------------------------------------------
 
-        with st.spinner(
-            "🧠 Analyse du déchet..."
-        ):
-
-            (
-                classe_detectee,
-                score_confiance,
-                classement
-            ) = analyser_dechet(
-                image,
-                interpreter,
-                input_details,
-                output_details
+        with st.spinner("🧠 Analyse du déchet..."):
+            (classe_detectee, score_confiance, classement) = analyser_dechet(
+                image, interpreter, input_details, output_details
             )
 
         # ----------------------------------------------------
@@ -641,10 +508,8 @@ if img_file is not None:
         # ----------------------------------------------------
 
         if score_confiance < CONFIDENCE_THRESHOLD:
-
             st.warning(
-                "⚠️ L'IA n'est pas suffisamment certaine "
-                "de sa réponse."
+                "⚠️ L'IA n'est pas suffisamment certaine " "de sa réponse."
             )
 
             st.write(
@@ -658,14 +523,11 @@ if img_file is not None:
             )
 
         else:
-
             # ------------------------------------------------
             # RÉSULTAT
             # ------------------------------------------------
 
-            informations = GUIDE_TRI.get(
-                classe_detectee
-            )
+            informations = GUIDE_TRI.get(classe_detectee)
 
             st.markdown(
                 f"""
@@ -688,16 +550,14 @@ if img_file is not None:
 
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
             # ------------------------------------------------
             # BARRE DE CONFIANCE
             # ------------------------------------------------
 
-            st.progress(
-                min(score_confiance, 1.0)
-            )
+            st.progress(min(score_confiance, 1.0))
 
             # ------------------------------------------------
             # EXPLICATION
@@ -705,9 +565,7 @@ if img_file is not None:
 
             st.subheader("🔎 Pourquoi ?")
 
-            st.write(
-                informations["description"]
-            )
+            st.write(informations["description"])
 
             # ------------------------------------------------
             # ACTION
@@ -715,9 +573,7 @@ if img_file is not None:
 
             st.subheader("♻️ Que faire ?")
 
-            st.info(
-                informations["action"]
-            )
+            st.info(informations["action"])
 
             # ------------------------------------------------
             # CONSEIL
@@ -725,41 +581,28 @@ if img_file is not None:
 
             st.subheader("💡 Conseil")
 
-            st.success(
-                informations["conseil"]
-            )
+            st.success(informations["conseil"])
 
             # ------------------------------------------------
             # AUTRES PRÉDICTIONS
             # ------------------------------------------------
 
-            with st.expander(
-                "📊 Voir les autres prédictions"
-            ):
-
+            with st.expander("📊 Voir les autres prédictions"):
                 for classe, score in classement:
+                    st.write(f"**{classe}** — " f"{score * 100:.1f} %")
 
-                    st.write(
-                        f"**{classe}** — "
-                        f"{score * 100:.1f} %"
-                    )
-
-                    st.progress(
-                        min(float(score), 1.0)
-                    )
+                    st.progress(min(float(score), 1.0))
 
             # ------------------------------------------------
             # HISTORIQUE
             # ------------------------------------------------
 
-            ajouter_historique(
-                classe_detectee,
-                score_confiance
-            )
+            ajouter_historique(classe_detectee, score_confiance)
 
     except Exception as e:
-
-        st.error(f"❌ Une erreur est survenue lors du traitement de l'image : {e}")
+        st.error(
+            f"❌ Une erreur est survenue lors du traitement de l'image : {e}"
+        )
 
 
 # ============================================================
@@ -774,60 +617,31 @@ historique = st.session_state.historique
 
 
 if not historique:
-
-    st.info(
-        "Aucune analyse réalisée pour le moment."
-    )
+    st.info("Aucune analyse réalisée pour le moment.")
 
 else:
-
     total = len(historique)
 
-    recyclables = sum(
-        1
-        for x in historique
-        if x["classe"] == "Recyclable"
-    )
+    recyclables = sum(1 for x in historique if x["classe"] == "Recyclable")
 
-    organiques = sum(
-        1
-        for x in historique
-        if x["classe"] == "Organique"
-    )
+    organiques = sum(1 for x in historique if x["classe"] == "Organique")
 
     non_recyclables = sum(
-        1
-        for x in historique
-        if x["classe"] == "Non-Recyclable"
+        1 for x in historique if x["classe"] == "Non-Recyclable"
     )
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-
-        st.metric(
-            "🔎 Analyses",
-            total
-        )
+        st.metric("🔎 Analyses", total)
 
     with col2:
-
-        st.metric(
-            "♻️ Recyclables",
-            recyclables
-        )
+        st.metric("♻️ Recyclables", recyclables)
 
     with col3:
+        st.metric("🌱 Organiques", organiques)
 
-        st.metric(
-            "🌱 Organiques",
-            organiques
-        )
-
-    st.metric(
-        "🗑️ Non-recyclables",
-        non_recyclables
-    )
+    st.metric("🗑️️ Non-recyclables", non_recyclables)
 
 
 # ============================================================
@@ -835,20 +649,12 @@ else:
 # ============================================================
 
 with st.expander("🕒 Voir l'historique"):
-
     if not historique:
-
-        st.write(
-            "Aucune analyse."
-        )
+        st.write("Aucune analyse.")
 
     else:
-
         for entree in historique:
-
-            informations = GUIDE_TRI.get(
-                entree["classe"]
-            )
+            informations = GUIDE_TRI.get(entree["classe"])
 
             st.write(
                 f"{informations['emoji']} "
@@ -856,9 +662,7 @@ with st.expander("🕒 Voir l'historique"):
                 f"{entree['confiance'] * 100:.1f}%"
             )
 
-            st.caption(
-                f"{entree['date']} à {entree['heure']}"
-            )
+            st.caption(f"{entree['date']} à {entree['heure']}")
 
             st.divider()
 
@@ -868,21 +672,14 @@ with st.expander("🕒 Voir l'historique"):
 # ============================================================
 
 with st.expander("📚 Guide des catégories"):
-
     for classe, informations in GUIDE_TRI.items():
-
         st.markdown(
-            f"### {informations['emoji']} "
-            f"{informations['titre']}"
+            f"### {informations['emoji']} " f"{informations['titre']}"
         )
 
-        st.write(
-            informations["description"]
-        )
+        st.write(informations["description"])
 
-        st.write(
-            f"**Action :** {informations['action']}"
-        )
+        st.write(f"**Action :** {informations['action']}")
 
         st.divider()
 
@@ -892,11 +689,7 @@ with st.expander("📚 Guide des catégories"):
 # ============================================================
 
 if historique:
-
-    if st.button(
-        "🗑️ Effacer l'historique"
-    ):
-
+    if st.button("🗑️️ Effacer l'historique"):
         st.session_state.historique = []
 
         st.rerun()
