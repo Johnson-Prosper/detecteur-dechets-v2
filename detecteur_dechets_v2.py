@@ -7,7 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1giaYDovKxxxqLbKGPy4Pfiyg2HpkXOR-
 """
 
-!pip install streamlit opencv-python-headless
 
 import os
 from datetime import datetime
